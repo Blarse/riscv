@@ -1,15 +1,18 @@
 .PHONY: all debug run clean
 
+
 CC=gcc
-CFLAGS=-ggdb -Wall
+CFLAGS=-ggdb -Wall -O0
 
 all: main
 
 main: main.c
-	$CC -c -o $@ $< $(CFLAGS)
+	$(CC) -o $@ $< $(CFLAGS)
 
 debug:
 
 run: main
+	./main samples/test.s test.o
 
 clean:
+	rm main
