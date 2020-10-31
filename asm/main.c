@@ -6,11 +6,18 @@
 
 #define LINE_BUFFER_SIZE 256
 
+/*
+TODO: Assembly-time errors
+ */
+
+
 typedef struct
 {
 	uint32 Value;
 	char Name[32];
 } symbol;
+
+
 
 int isempty(const char *String)
 {
@@ -35,17 +42,40 @@ char * firstchar(const char *String)
 	return NULL;
 }
 
-void pass1(FILE* InputFile)
+
+
+void parse_line(char *Stream, char *Lable,
+				char *Mnemonic,	char *Operands, char *Comment)
+{
+
+	flockfile(InputFile);
+
+	while(CurrentChar != '\n')
+	{
+		CurrentChar = getc_unlocked(InputFile);
+
+
+
+
+	}
+
+	if(ferror(InputFile))
+		panic("[%s] file parsing error",__func__);
+
+	funlockfile(InputFile);
+}
+
+void pass1(FILE *InputFile)
 {
 	char LineBuffer[LINE_BUFFER_SIZE];
-	char *LinePtr;
 	uint32 LineNum = 0;
-	size_t LineLength = 0;
+
+	int32 CurrentChar;
 	uint32 Result = 0;
 
 
 	uint32 LocationCounter;
-	char *Lable, *Mnemonic, *Operands, *Comment;
+	char *Token, *Lable, *Mnemonic, *Operands, *Comment;
 
 
 	for(;;)
@@ -70,22 +100,9 @@ void pass1(FILE* InputFile)
 
 		LineBuffer[LineLength-1] = '\0';
 
-
-
-		LinePtr = firstchar(LineBuffer);
-		if(*LinePtr == '.')
-		{
-			//directive
-
-		}
-		else
-		{
-			//check for a lable
-		}
-
-
 		printf("%d: '%s'\n", LineNum, LineBuffer);
 	}
+
 
 }
 
