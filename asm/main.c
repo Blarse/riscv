@@ -3,6 +3,7 @@
 #include <ctype.h>
 
 #include "common.c"
+#include "lex.c"
 
 #define LINE_BUFFER_SIZE 256
 
@@ -31,85 +32,39 @@ int isempty(const char *String)
 }
 
 
-char * firstchar(const char *String)
-{
-	while(*String != '\0')
-	{
-		if(!isspace(*String))
-			return String;
-		String++;
-	}
-	return NULL;
-}
-
-
-
 void parse_line(char *Stream, char *Lable,
 				char *Mnemonic,	char *Operands, char *Comment)
 {
 
-	flockfile(InputFile);
-
-	while(CurrentChar != '\n')
-	{
-		CurrentChar = getc_unlocked(InputFile);
-
-
-
-
-	}
-
-	if(ferror(InputFile))
-		panic("[%s] file parsing error",__func__);
-
-	funlockfile(InputFile);
 }
 
 void pass1(FILE *InputFile)
 {
-	char LineBuffer[LINE_BUFFER_SIZE];
-	uint32 LineNum = 0;
-
-	int32 CurrentChar;
-	uint32 Result = 0;
-
-
 	uint32 LocationCounter;
-	char *Token, *Lable, *Mnemonic, *Operands, *Comment;
+	token CurrentToken;
 
 
-	for(;;)
+	do
 	{
-		++LineNum;
-
-		LinePtr = fgets(LineBuffer, LINE_BUFFER_SIZE, InputFile);
-		if(!LinePtr)
-		{
-			if(feof(InputFile))
-				break;
-			panic("[%s] file parsing error",__func__);
-		}
-
-		if(isempty(LineBuffer))
-			continue;
-
-		LineLength = strlen(LineBuffer);
-
-		if(LineBuffer[LineLength-1] != '\n')
-			panic("The line %d is too long!", LineNum);
-
-		LineBuffer[LineLength-1] = '\0';
-
-		printf("%d: '%s'\n", LineNum, LineBuffer);
-	}
-
+		next_token(&CurrentToken, InputFile);
+	} while(CurrentToken.Type != TOK_EOF);
 
 }
 
+void lex_test(FILE *InputFile)
+{
+	printf("Test\n");
+	printf(__func__);
+	token Token = {};
+	read_hex(&Token, InputFile);
+	printf("a= %d", Token.NumValue);
+
+}
 
 int main(int ArgsCount, char **Args)
 {
 
+	//TODO: Add listing file
 	if(ArgsCount != 3)
 		panic("Wrong arguments\nUsage: %s <input-file> <output-file>", Args[0]);
 
@@ -123,6 +78,10 @@ int main(int ArgsCount, char **Args)
 	FILE *OutputFile = fopen(OutputFileName, "w");
 	if(!OutputFile)
 		panic("Can't create '%s'", OutputFileName);
+
+
+	/* lex_test(InputFile); */
+	/* exit(0); */
 
 	pass1(InputFile);
 

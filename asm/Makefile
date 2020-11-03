@@ -14,5 +14,8 @@ debug:
 run: main
 	./main samples/test.s test.o
 
+rund: main
+	sudo gdb --args main samples/test.s test.o
+
 clean:
 	rm main

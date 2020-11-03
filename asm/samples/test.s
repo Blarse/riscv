@@ -1,9 +1,8 @@
-
-
-.equ
-
-start:
-	addi t0, zero, 0
-
-
-loop:	jmp $loop
+0b1010
+	123
+	10
+	228
+	0xff
+	0b1001
+	0b1010
+	0b10000000
