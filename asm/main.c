@@ -2,40 +2,25 @@
 #include <string.h>
 #include <ctype.h>
 
+
 #include "common.c"
+
+#include "lex.h"
 #include "lex.c"
 
-#define LINE_BUFFER_SIZE 256
+#include "tables.h"
 
-/*
-TODO: Assembly-time errors
- */
+static uint32 LineNumber = 1;
 
-
-typedef struct
+void print_token(token *Token)
 {
-	uint32 Value;
-	char Name[32];
-} symbol;
-
-
-
-int isempty(const char *String)
-{
-	while(*String != '\0')
-	{
-		if(!isspace(*String))
-			return 0;
-		String++;
-	}
-	return 1;
-}
-
-
-void parse_line(char *Stream, char *Lable,
-				char *Mnemonic,	char *Operands, char *Comment)
-{
-
+	printf("%d: Token <%s> ", LineNumber, TokToStr[Token->Type]);
+	if(Token->Type == TOK_LITERAL)
+		printf("[val = %u (%d)] [type = %s]", Token->NumValue,
+			   Token->NumValue, LitToStr[Token->LiteralType]);
+	if(Token->Type == TOK_ERROR)
+		printf("[error = %s '%c']", ErrToStr[Token->ErrorCode], Token->NumValue);
+	putchar('\n');
 }
 
 void pass1(FILE *InputFile)
@@ -43,10 +28,19 @@ void pass1(FILE *InputFile)
 	uint32 LocationCounter;
 	token CurrentToken;
 
-
 	do
 	{
+		CurrentToken.Type = 0;
+		CurrentToken.LiteralType = 0;
+		CurrentToken.NumValue = 0;
+		CurrentToken.Name = NULL;
 		next_token(&CurrentToken, InputFile);
+
+		print_token(&CurrentToken);
+
+		if(CurrentToken.Type == TOK_EOL)
+			LineNumber++;
+
 	} while(CurrentToken.Type != TOK_EOF);
 
 }

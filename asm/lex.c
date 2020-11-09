@@ -1,4 +1,12 @@
+#include <limits.h>
 #include "lex.h"
+
+static void read_hex(token *Token, FILE *InputStream);
+static void read_bin(token *Token, FILE *InputStream);
+static void read_dec(token *Token, FILE *InputStream);
+static void read_string(token *Token, FILE *InputStream);
+static void read_comment(FILE *InputStream);
+static void read_multiline_comment(FILE *InputStream);
 
 int8 CharToInt[] =
 {
@@ -19,27 +27,24 @@ int8 CharToInt[] =
 	['F'] = 15, ['f'] = 15,
 };
 
-static void read_hex(token *Token, FILE *InputStream);
-static void read_bin(token *Token, FILE *InputStream);
-static void read_dec(token *Token, FILE *InputStream);
-static void read_string(token *Token, FILE *InputStream);
-static void read_comment(FILE *InputStream);
-static void read_multiline_comment(FILE *InputStream);
-
-#define CASE_UNDEF(t,v) t->Type = TOK_UNDEFINED; t->NumValue = v;
+#define CASE_ERROR(t,e,v) do{t->Type = TOK_ERROR; t->ErrorCode = e; t->NumValue = v;}while(0)
 
 void next_token(token *Token, FILE *InputStream)
 {
 
+	Token->Type = TOK_UNDEFINED;
+	Token->NumValue = 0;
 repeat:;
 
 	char Cursor = fgetc(InputStream);
+
+
 
 	switch(Cursor)
 	{
 	case '#':
 		read_comment(InputStream);
-		//goto repeat;
+		goto repeat;
 	case '/':
 		Cursor = fgetc(InputStream);
 		switch(Cursor)
@@ -51,7 +56,7 @@ repeat:;
 			read_multiline_comment(InputStream);
 			break;
 		default:
-			CASE_UNDEF(Token, Cursor);
+			CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Cursor);
 			return;
 		}
 	case ' ': case '\t': case '\v':	case '\f': case '\r':
@@ -60,36 +65,43 @@ repeat:;
 
 	case '-':
 		Cursor = fgetc(InputStream);
-		if(!isdigit(Cursor))
+		ungetc(Cursor, InputStream);
+		if(!isdigit(Cursor) || Token->NumValue == -1)
 		{
 			//Not a negative number
 			//Todo minus sign
-			ungetc(Cursor, InputStream);
-			Token->Type = TOK_UNDEFINED;
+			CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Cursor);
+
 			break;
 		}
+		Token->NumValue = -1;
+		goto repeat;
+
 	case '0':
 		Cursor = fgetc(InputStream);
+
 		switch(Cursor)
 		{
 		case 'x':
 			read_hex(Token, InputStream);
-			Token->LiteralType = LIT_HEX;
+			break;
 		case 'b':
 			read_bin(Token, InputStream);
-			Token->LiteralType = LIT_BIN;
+			break;
 		default:
+			ungetc(Cursor, InputStream);
 			read_dec(Token, InputStream);
-			Token->LiteralType = LIT_DEC;
 		}
-		Token->Type = TOK_LITERAL;
+
+		break;
+
 	case '1': case '2': case '3':	case '4':
 	case '5': case '6': case '7': case '8': case '9':
 		ungetc(Cursor, InputStream);
 		read_dec(Token, InputStream);
-		Token->Type = TOK_LITERAL;
-		Token->LiteralType = LIT_DEC;
 		break;
+
+
 
 	case 'a': case 'b': case 'c': case 'd': case 'e':
 	case 'f': case 'g': case 'h': case 'i': case 'j':
@@ -119,10 +131,13 @@ repeat:;
 		break;
 
 	case EOF:
-		Token->Type = ferror(InputStream) ? TOK_UNDEFINED : TOK_EOF;
+		if(ferror(InputStream))
+			CASE_ERROR(Token, ERR_FILE_INPUT, Cursor);
+		else
+			Token->Type = TOK_EOF;
 		break;
 	default:
-		CASE_UNDEF(Token, Cursor);
+		CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Cursor);
 	}
 }
 
@@ -149,7 +164,6 @@ static void read_multiline_comment(FILE *InputStream)
 		{
 			if((Temp = fgetc(InputStream)) == '/')
 			{
-				ungetc(Temp, InputStream);
 				return;
 			}
 		}
@@ -159,19 +173,57 @@ static void read_multiline_comment(FILE *InputStream)
 static void read_hex(token *Token, FILE *InputStream)
 {
 	int32 Temp;
-	int32 Result = 0;
-	while((Temp = fgetc(InputStream)) != EOF)
+	uint32 Result = 0;
+	uint32 ResultNext = 0;
+	Token->Type = TOK_LITERAL;
+	Token->LiteralType = LIT_HEX;
+
+	if(Token->NumValue) //Negative number (max: 2147483647)
 	{
-		if(isxdigit(Temp))
+		while((Temp = fgetc(InputStream)) != EOF)
 		{
-			Result = (Result << 4)	+ CharToInt[Temp];
+			if(isxdigit(Temp))
+			{
+				ResultNext = (Result << 4) + CharToInt[Temp];
+
+				if(ResultNext > (uint32)INT_MAX+1)
+				{
+					Token->Type = TOK_ERROR;
+					Token->ErrorCode = ERR_INT_OVERFLOW;
+				}
+
+				Result = ResultNext;
+			}
+			else
+			{
+				ungetc(Temp, InputStream);
+				Token->NumValue = Result * -1;
+				return;
+			}
 		}
-		else
+	}
+	else //Positive number (max: 4294967295)
+	{
+		while((Temp = fgetc(InputStream)) != EOF)
 		{
-			Token->NumValue = Result;
-			printf("%s result: %d\n", __func__, Result);
-			ungetc(Temp, InputStream);
-			return;
+			if(isxdigit(Temp))
+			{
+				ResultNext = (Result << 4) + CharToInt[Temp];
+
+				if(ResultNext < Result)
+				{
+					Token->Type = TOK_ERROR;
+					Token->ErrorCode = ERR_INT_OVERFLOW;
+				}
+
+				Result = ResultNext;
+			}
+			else
+			{
+				ungetc(Temp, InputStream);
+				Token->NumValue = Result;
+				return;
+			}
 		}
 	}
 }
@@ -179,19 +231,58 @@ static void read_hex(token *Token, FILE *InputStream)
 static void read_bin(token *Token, FILE *InputStream)
 {
 	int32 Temp;
-	int32 Result = 0;
-	while((Temp = fgetc(InputStream)) != EOF)
+	uint32 Result = 0;
+	uint32 ResultNext = 0;
+	Token->Type = TOK_LITERAL;
+	Token->LiteralType = LIT_BIN;
+
+	if(Token->NumValue) //Negative number (max: 2147483647)
 	{
-		if(Temp == '0' || Temp == '1')
+		while((Temp = fgetc(InputStream)) != EOF)
 		{
-			Result = (Result << 1)	+ CharToInt[Temp];
+			if(Temp == '0' || Temp == '1')
+			{
+				ResultNext = (Result << 1) + CharToInt[Temp];
+
+				if(ResultNext > (uint32)INT_MAX+1)
+				{
+					Token->Type = TOK_ERROR;
+					Token->ErrorCode = ERR_INT_OVERFLOW;
+				}
+
+				Result = ResultNext;
+			}
+			else
+			{
+				ungetc(Temp, InputStream);
+				Token->NumValue = Result * -1;
+				return;
+			}
 		}
-		else
+
+	}
+	else //Positive number (max: 4294967295)
+	{
+		while((Temp = fgetc(InputStream)) != EOF)
 		{
-			Token->NumValue = Result;
-			printf("%s result: %d\n", __func__, Result);
-			ungetc(Temp, InputStream);
-			return;
+			if(Temp == '0' || Temp == '1')
+			{
+				ResultNext = (Result << 1) + CharToInt[Temp];
+
+				if(ResultNext < Result)
+				{
+					Token->Type = TOK_ERROR;
+					Token->ErrorCode = ERR_INT_OVERFLOW;
+				}
+
+				Result = ResultNext;
+			}
+			else
+			{
+				ungetc(Temp, InputStream);
+				Token->NumValue = Result;
+				return;
+			}
 		}
 	}
 }
@@ -199,20 +290,61 @@ static void read_bin(token *Token, FILE *InputStream)
 static void read_dec(token *Token, FILE *InputStream)
 {
 	int32 Temp;
-	int32 Result = 0;
-	while((Temp = fgetc(InputStream)) != EOF)
+	uint32 Result = 0;
+	uint32 ResultNext = 0;
+	Token->Type = TOK_LITERAL;
+	Token->LiteralType = LIT_DEC;
+
+
+	if(Token->NumValue) //Negative number (max: 2147483647)
 	{
-		if(isdigit(Temp))
+		while((Temp = fgetc(InputStream)) != EOF)
 		{
-			Result = (Result * 10)	+ CharToInt[Temp];
+			if(isdigit(Temp))
+			{
+				ResultNext = (Result * 10) + CharToInt[Temp];
+
+				if(ResultNext > (uint32)INT_MAX+1)
+				{
+					Token->Type = TOK_ERROR;
+					Token->ErrorCode = ERR_INT_OVERFLOW;
+				}
+
+				Result = ResultNext;
+			}
+			else
+			{
+				ungetc(Temp, InputStream);
+				Token->NumValue = Result * -1;
+				return;
+			}
 		}
-		else
+
+	}
+	else //Positive number (max: 4294967295)
+	{
+		while((Temp = fgetc(InputStream)) != EOF)
 		{
-			Token->NumValue = Result;
-			printf("%s result: %d\n", __func__, Result);
-			ungetc(Temp, InputStream);
-			return;
+			if(isdigit(Temp))
+			{
+				ResultNext = (Result * 10) + CharToInt[Temp];
+
+				if(ResultNext < Result)
+				{
+					Token->Type = TOK_ERROR;
+					Token->ErrorCode = ERR_INT_OVERFLOW;
+				}
+
+				Result = ResultNext;
+			}
+			else
+			{
+				ungetc(Temp, InputStream);
+				Token->NumValue = Result;
+				return;
+			}
 		}
+
 	}
 }
 
