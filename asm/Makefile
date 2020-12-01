@@ -19,3 +19,4 @@ rund: main
 
 clean:
 	rm main
+	rm -rf main.dSYM
