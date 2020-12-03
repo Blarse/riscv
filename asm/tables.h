@@ -1,6 +1,6 @@
 #define ENUM_STR_ENTRY(e) [e] = #e
 
-char* TokToStr[] =
+char* tok_to_str[] =
 {
 	ENUM_STR_ENTRY(TOK_ERROR),
 	ENUM_STR_ENTRY(TOK_EOL),
@@ -13,14 +13,14 @@ char* TokToStr[] =
 	ENUM_STR_ENTRY(TOK_IDENTIFIER),
 };
 
-char* ErrToStr[] =
+char* err_to_str[] =
 {
 	ENUM_STR_ENTRY(ERR_FILE_INPUT),
 	ENUM_STR_ENTRY(ERR_UNEXPECTED_CHAR),
 	ENUM_STR_ENTRY(ERR_INT_OVERFLOW),
 };
 
-char* LitToStr[] =
+char* lit_to_str[] =
 {
 	ENUM_STR_ENTRY(LIT_DEC),
 	ENUM_STR_ENTRY(LIT_HEX),
@@ -39,16 +39,16 @@ typedef enum
 	DIR_ZERO,
 	DIR_ORG,
 	DIR_LC, // Location Counter
-} directives;
+} Directives;
 
 typedef enum
 {
 	INST_ADD, INST_SUB, INST_SLL, INST_SLT, INST_SLTU, INST_XOR, INST_SRL, INST_SRA,
 	INST_OR, INST_AND
-} rtype;
+} RType;
 
 typedef enum
 {
 	INST_LB, INST_LH, INST_LW, INST_LBU, INST_LHU,
 	INST_ADDI, INST_SLTI, INST_SLTIU, INST_XORI, INST_ORI, INST_ANDI,
-} itype;
+} IType;

@@ -1,15 +1,15 @@
 #include <limits.h>
 #include "lex.h"
 
-static void read_hex(token *Token, FILE *InputStream);
-static void read_bin(token *Token, FILE *InputStream);
-static void read_dec(token *Token, FILE *InputStream);
-static void read_string(token *Token, FILE *InputStream);
-static void read_char(token *Token, FILE *InputStream);
-static void read_comment(FILE *InputStream);
-static void read_multiline_comment(FILE *InputStream);
+static void read_hex(Token *token, FILE *input_stream);
+static void read_bin(Token *token, FILE *input_stream);
+static void read_dec(Token *token, FILE *input_stream);
+static void read_string(Token *token, FILE *input_stream);
+static void read_char(Token *token, FILE *input_stream);
+static void read_comment(FILE *input_stream);
+static void read_multiline_comment(FILE *input_stream);
 
-int8 CharToInt[] =
+int8 char_to_int[256] =
 {
 	['1'] = 1,
 	['2'] = 2,
@@ -28,34 +28,35 @@ int8 CharToInt[] =
 	['F'] = 15, ['f'] = 15,
 };
 
-#define CASE_ERROR(t,e,v) do{t->Type = TOK_ERROR; t->ErrorCode = e; t->Value = v;}while(0)
+#define CASE_ERROR(t,e,v)\
+	do{t->type = TOK_ERROR; t->error_code = e; t->value = v;}while(0)
 
-void next_token(token *Token, FILE *InputStream)
+void next_token(Token *token, FILE *input_stream)
 {
 
-	Token->Type = TOK_UNDEFINED;
-	Token->Value = 0;
+	token->type = TOK_UNDEFINED;
+	token->value = 0;
 repeat:;
 
-	char Cursor = fgetc(InputStream);
+	char cursor = fgetc(input_stream);
 
-	switch(Cursor)
+	switch(cursor)
 	{
 	case '#':
-		read_comment(InputStream);
+		read_comment(input_stream);
 		goto repeat;
 	case '/':
-		Cursor = fgetc(InputStream);
-		switch(Cursor)
+		cursor = fgetc(input_stream);
+		switch(cursor)
 		{
 		case '/':
-			read_comment(InputStream);
+			read_comment(input_stream);
 			break;
 		case '*':
-			read_multiline_comment(InputStream);
+			read_multiline_comment(input_stream);
 			break;
 		default:
-			CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Cursor);
+			CASE_ERROR(token, ERR_UNEXPECTED_CHAR, cursor);
 			return;
 		}
 	case ' ': case '\t': case '\v':	case '\f': case '\r':
@@ -64,32 +65,32 @@ repeat:;
 
 	case '-':
 		//TODO: negative numbers
-		CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Cursor);
+		CASE_ERROR(token, ERR_UNEXPECTED_CHAR, cursor);
 
 	case '0':
-		Cursor = fgetc(InputStream);
+		cursor = fgetc(input_stream);
 
-		switch(Cursor)
+		switch(cursor)
 		{
 		case 'x':
 		case 'X':
-			read_hex(Token, InputStream);
+			read_hex(token, input_stream);
 			break;
 		case 'b':
 		case 'B':
-			read_bin(Token, InputStream);
+			read_bin(token, input_stream);
 			break;
 		default:
-			ungetc(Cursor, InputStream);
-			read_dec(Token, InputStream);
+			ungetc(cursor, input_stream);
+			read_dec(token, input_stream);
 		}
 
 		break;
 
 	case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
-		ungetc(Cursor, InputStream);
-		read_dec(Token, InputStream);
+		ungetc(cursor, input_stream);
+		read_dec(token, input_stream);
 		break;
 
 	case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
@@ -105,61 +106,61 @@ repeat:;
 		break;
 
 	case '.':
-		Token->Type = TOK_DIRECTIVE;
-		while((Cursor = fgetc(InputStream)) != EOF)
+		token->type = TOK_DIRECTIVE;
+		while((cursor = fgetc(input_stream)) != EOF)
 		{
 
 		}
 		break;
 
 	case '\'':
-		read_char(Token, InputStream);
+		read_char(token, input_stream);
 		break;
 	case '"':
-		read_string(Token, InputStream);
+		read_string(token, input_stream);
 		break;
 
 	case ',':
-		Token->Type = TOK_COMMA;
+		token->type = TOK_COMMA;
 		break;
 
 	case '\n':
-		Token->Type = TOK_EOL;
+		token->type = TOK_EOL;
 		break;
 
 	case EOF:
-		if(ferror(InputStream))
-			CASE_ERROR(Token, ERR_FILE_INPUT, Cursor);
+		if(ferror(input_stream))
+			CASE_ERROR(token, ERR_FILE_INPUT, cursor);
 		else
-			Token->Type = TOK_EOF;
+			token->type = TOK_EOF;
 		break;
 	default:
-		CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Cursor);
+		CASE_ERROR(token, ERR_UNEXPECTED_CHAR, cursor);
 	}
 }
 
 
-static void read_comment(FILE *InputStream)
+static void read_comment(FILE *input_stream)
 {
-	int32 Temp;
-	while((Temp = fgetc(InputStream)) != EOF)
+	int32 temp;
+	while((temp = fgetc(input_stream)) != EOF)
 	{
-		if(Temp == '\n')
+		if(temp == '\n')
 		{
-			ungetc(Temp, InputStream);
+			ungetc(temp, input_stream);
 			return;
 		}
 	}
 }
 
-static void read_multiline_comment(FILE *InputStream)
+static void read_multiline_comment(FILE *input_stream)
 {
-	int32 Temp;
-	while((Temp = fgetc(InputStream)) != EOF)
+	int32 temp;
+	while((temp = fgetc(input_stream)) != EOF)
 	{
-		if(Temp == '*')
+		if(temp == '*')
 		{
-			if((Temp = fgetc(InputStream)) == '/')
+			if((temp = fgetc(input_stream)) == '/')
 			{
 				return;
 			}
@@ -167,118 +168,118 @@ static void read_multiline_comment(FILE *InputStream)
 	}
 }
 
-static void read_hex(token *Token, FILE *InputStream)
+static void read_hex(Token *token, FILE *input_stream)
 {
-	int32 Temp;
-	uint32 Result = 0;
-	uint32 ResultNext = 0;
+	int32 temp;
+	uint32 result = 0;
+	uint32 result_next = 0;
 
-	Token->Type = TOK_LITERAL;
-	Token->LiteralType = LIT_HEX;
+	token->type = TOK_LITERAL;
+	token->literal_type = LIT_HEX;
 
-	char *OrigString = NULL;
-	buf_push(OrigString, '0');
-	buf_push(OrigString, 'x');
+	char *orig_string = NULL;
+	buf_push(orig_string, '0');
+	buf_push(orig_string, 'x');
 
-	while((Temp = fgetc(InputStream)) != EOF)
+	while((temp = fgetc(input_stream)) != EOF)
 	{
-		if(isxdigit(Temp))
+		if(isxdigit(temp))
 		{
-			buf_push(OrigString, (char)Temp);
+			buf_push(orig_string, (char)temp);
 
-			ResultNext = (Result << 4) + CharToInt[Temp];
+			result_next = (result << 4) + char_to_int[temp];
 
-			if(ResultNext < Result)
+			if(result_next < result)
 			{
-				CASE_ERROR(Token, ERR_INT_OVERFLOW, Result);
+				CASE_ERROR(token, ERR_INT_OVERFLOW, result);
 			}
 
-			Result = ResultNext;
+			result = result_next;
 		}
 		else
 		{
-			buf_push(OrigString, '\0');
-			ungetc(Temp, InputStream);
-			Token->Value = Result;
-			Token->Name = OrigString;
+			buf_push(orig_string, '\0');
+			ungetc(temp, input_stream);
+			token->value = result;
+			token->name = orig_string;
 			return;
 		}
 	}
 }
 
-static void read_bin(token *Token, FILE *InputStream)
+static void read_bin(Token *token, FILE *input_stream)
 {
-	int32 Temp;
-	uint32 Result = 0;
-	uint32 ResultNext = 0;
+	int32 temp;
+	uint32 result = 0;
+	uint32 result_next = 0;
 
-	Token->Type = TOK_LITERAL;
-	Token->LiteralType = LIT_BIN;
+	token->type = TOK_LITERAL;
+	token->literal_type = LIT_BIN;
 
-	char *OrigString = NULL;
+	char *orig_string = NULL;
 
-	buf_push(OrigString, '0');
-	buf_push(OrigString, 'b');
+	buf_push(orig_string, '0');
+	buf_push(orig_string, 'b');
 
 
-	while((Temp = fgetc(InputStream)) != EOF)
+	while((temp = fgetc(input_stream)) != EOF)
 	{
-		if(Temp == '0' || Temp == '1')
+		if(temp == '0' || temp == '1')
 		{
-			buf_push(OrigString, (char)Temp);
+			buf_push(orig_string, (char)temp);
 
-			ResultNext = (Result << 1) + CharToInt[Temp];
+			result_next = (result << 1) + char_to_int[temp];
 
-			if(ResultNext < Result)
+			if(result_next < result)
 			{
-				CASE_ERROR(Token, ERR_INT_OVERFLOW, Result);
+				CASE_ERROR(token, ERR_INT_OVERFLOW, result);
 			}
 
-			Result = ResultNext;
+			result = result_next;
 		}
 		else
 		{
-			buf_push(OrigString, '\0');
-			ungetc(Temp, InputStream);
-			Token->Value = Result;
-			Token->Name = OrigString;
+			buf_push(orig_string, '\0');
+			ungetc(temp, input_stream);
+			token->value = result;
+			token->name = orig_string;
 			return;
 		}
 	}
 }
 
-static void read_dec(token *Token, FILE *InputStream)
+static void read_dec(Token *token, FILE *input_stream)
 {
-	int32 Temp;
-	uint32 Result = 0;
-	uint32 ResultNext = 0;
+	int32 temp;
+	uint32 result = 0;
+	uint32 result_next = 0;
 
-	Token->Type = TOK_LITERAL;
-	Token->LiteralType = LIT_DEC;
+	token->type = TOK_LITERAL;
+	token->literal_type = LIT_DEC;
 
-	char *OrigString = NULL;
+	char *orig_string = NULL;
 
-	while((Temp = fgetc(InputStream)) != EOF)
+	while((temp = fgetc(input_stream)) != EOF)
 	{
-		if(isdigit(Temp))
+		if(isdigit(temp))
 		{
-			buf_push(OrigString, (char)Temp);
+			buf_push(orig_string, (char)temp);
 
-			ResultNext = (Result * 10) + CharToInt[Temp];
+			result_next = (result * 10) + char_to_int[temp];
 
-			if(ResultNext < Result)
+			if(result_next < result)
 			{
-				CASE_ERROR(Token, ERR_INT_OVERFLOW, Result);
+				CASE_ERROR(token, ERR_INT_OVERFLOW, result);
 			}
 
-			Result = ResultNext;
+			result = result_next;
 		}
 		else
 		{
-			buf_push(OrigString, '\0');
-			ungetc(Temp, InputStream);
-			Token->Value = Result;
-			Token->Name = OrigString;
+			buf_push(orig_string, '\0');
+			ungetc(temp, input_stream);
+			token->value = result;
+			token->name = orig_string;
 			return;
 		}
 	}
@@ -286,70 +287,70 @@ static void read_dec(token *Token, FILE *InputStream)
 }
 
 
-static void read_string(token *Token, FILE *InputStream)
+static void read_string(Token *token, FILE *input_stream)
 {
-	int32 Temp;
-	char *Result = NULL;
+	int32 temp;
+	char *result = NULL;
 
-	Token->Type = TOK_LITERAL;
-	Token->LiteralType = LIT_STR;
+	token->type = TOK_LITERAL;
+	token->literal_type = LIT_STR;
 
-	while((Temp = fgetc(InputStream)) != EOF)
+	while((temp = fgetc(input_stream)) != EOF)
 	{
 
-		if(Temp == '"')
+		if(temp == '"')
 		{
-			buf_push(Result, '\0');
-			Token->Name = Result;
+			buf_push(result, '\0');
+			token->name = result;
 			return;
 		}
-		else if(isprint(Temp))
+		else if(isprint(temp))
 		{
-			buf_push(Result, Temp);
+			buf_push(result, temp);
 		}
 		else
 		{
-			CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Temp);
+			CASE_ERROR(token, ERR_UNEXPECTED_CHAR, temp);
 			return;
 		}
 	}
 }
 
-static void read_char(token *Token, FILE *InputStream)
+static void read_char(Token *token, FILE *input_stream)
 {
-	int32 Temp;
+	int32 temp;
 
-	Token->Type = TOK_LITERAL;
-	Token->LiteralType = LIT_CHR;
+	token->type = TOK_LITERAL;
+	token->literal_type = LIT_CHR;
 
-	char *OrigString = NULL;
+	char *orig_string = NULL;
 
-	Temp = fgetc(InputStream);
-	if(Temp == '\\')
+	temp = fgetc(input_stream);
+	if(temp == '\\')
 	{
-		buf_push(OrigString, '\\');
-		Temp = fgetc(InputStream);
-		switch(Temp)
+		buf_push(orig_string, '\\');
+		temp = fgetc(input_stream);
+		switch(temp)
 		{
 		case 'n':
-			buf_push(OrigString, 'n');
-			Token->Value = '\n';
+			buf_push(orig_string, 'n');
+			token->value = '\n';
 			break;
 			//TODO
 		}
 	}
-	else if(isprint(Temp))
+	else if(isprint(temp))
 	{
-		buf_push(OrigString, (char)Temp);
-		Token->Value = Temp;
+		buf_push(orig_string, (char)temp);
+		token->value = temp;
 	}
 
-	buf_push(OrigString, '\0');
-	Token->Name = OrigString;
-	Temp = fgetc(InputStream);
-	if(Temp != '\'')
+	buf_push(orig_string, '\0');
+	token->name = orig_string;
+	temp = fgetc(input_stream);
+	if(temp != '\'')
 	{
-		CASE_ERROR(Token, ERR_UNEXPECTED_CHAR, Temp);
+		CASE_ERROR(token, ERR_UNEXPECTED_CHAR, temp);
 	}
 	return;
 }

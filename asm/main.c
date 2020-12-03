@@ -2,7 +2,6 @@
 #include <string.h>
 #include <ctype.h>
 
-
 #include "common.c"
 
 #include "lex.h"
@@ -10,79 +9,79 @@
 
 #include "tables.h"
 
-static uint32 LineNumber = 1;
+static uint32 line_number = 1;
 
-void print_token(token *Token)
+void print_token(Token *token)
 {
-	printf("%d: Token <%s> ", LineNumber, TokToStr[Token->Type]);
+	printf("%d: Token <%s> ", line_number, tok_to_str[token->type]);
 
-	if(Token->Type == TOK_LITERAL)
+	if(token->type == TOK_LITERAL)
 	{
-		printf("[val = %u (%d)] [type = %s] [text = '%s']", Token->Value,
-			   Token->Value, LitToStr[Token->LiteralType], Token->Name);
+		printf("[val = %u (%d)] [type = %s] [text = '%s']", token->value,
+			   token->value, lit_to_str[token->literal_type], token->name);
 	}
-	else if(Token->Type == TOK_ERROR)
+	else if(token->type == TOK_ERROR)
 	{
-		printf("[error = %s '%c']", ErrToStr[Token->ErrorCode], Token->Value);
+		printf("[error = %s '%c']", err_to_str[token->error_code], token->value);
 	}
 
 	putchar('\n');
 }
 
-void pass1(FILE *InputFile)
+void pass1(FILE *input_file)
 {
-	uint32 LocationCounter;
-	token CurrentToken;
+	uint32 location_counter;
+	Token current_token;
 
 	do
 	{
-		CurrentToken.Type = 0;
-		CurrentToken.LiteralType = 0;
-		CurrentToken.Value = 0;
-		CurrentToken.Name = NULL;
-		next_token(&CurrentToken, InputFile);
+		current_token.type = 0;
+		current_token.literal_type = 0;
+		current_token.value = 0;
+		current_token.name = NULL;
+		next_token(&current_token, input_file);
 
-		print_token(&CurrentToken);
+		print_token(&current_token);
 
-		if(CurrentToken.Type == TOK_EOL)
-			LineNumber++;
+		if(current_token.type == TOK_EOL)
+			line_number++;
 
-	} while(CurrentToken.Type != TOK_EOF);
+	} while(current_token.type != TOK_EOF);
 
 }
 
-void lex_test(FILE *InputFile)
+void lex_test(FILE *input_file)
 {
 	printf("Test\n");
 	printf(__func__);
-	token Token = {};
-	read_hex(&Token, InputFile);
-	printf("a= %d", Token.Value);
+	Token token = {};
+	read_hex(&token, input_file);
+	printf("a= %d", token.value);
 
 }
 
-int main(int ArgsCount, char **Args)
+int main(int argc, char **argv)
 {
 	//TODO: Add listing file
-	if(ArgsCount != 3)
-		panic("Wrong arguments\nUsage: %s <input-file> <output-file>", Args[0]);
+	if(argc != 3)
+		panic("Wrong arguments\nUsage: %s <input-file> <output-file>", argv[0]);
 
-	char *InputFileName = Args[1];
-	char *OutputFileName = Args[2];
+	char *intput_file_name = argv[1];
+	char *output_file_name = argv[2];
 
-	FILE *InputFile = fopen(InputFileName, "r");
-	if(!InputFile)
-		panic("Can't open '%s' for reading", InputFileName);
+	FILE *input_file = fopen(intput_file_name, "r");
+	if(!input_file)
+		panic("Can't open '%s' for reading", intput_file_name);
 
-	FILE *OutputFile = fopen(OutputFileName, "w");
-	if(!OutputFile)
-		panic("Can't create '%s'", OutputFileName);
+	FILE *output_file = fopen(output_file_name, "w");
+	if(!output_file)
+		panic("Can't create '%s'", output_file_name);
 
 
-	/* lex_test(InputFile); */
+	/* lex_test(input_file); */
 	/* exit(0); */
 
-	pass1(InputFile);
+	pass1(input_file);
 
 	return 0;
 }
