@@ -2,6 +2,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#define DEBUG
+
 #include "common.c"
 
 #include "lex.h"
@@ -24,6 +26,10 @@ void print_token(Token *token)
 	{
 		printf("[error = %s '%c']", err_to_str[token->error_code], token->value);
 	}
+	else if(token->type >= TOK_LABLE)
+	{
+		printf("[text = '%s']", token->name);
+	}
 
 	putchar('\n');
 }
@@ -33,8 +39,29 @@ void pass1(FILE *input_file)
 	uint32 location_counter;
 	Token current_token;
 
+#if defined(DEBUG)
+	current_token.type = TOK_EOL;
+#endif
+
 	do
 	{
+
+#if defined(DEBUG)
+		if(current_token.type == TOK_EOL)
+		{
+			fpos_t pos;
+			size_t len = 0;
+			char *debug_line = NULL;
+
+			fgetpos(input_file, &pos);
+			len = getline(&debug_line, &len, input_file);
+			debug_line[len-1] = '\0';
+			fsetpos(input_file, &pos);
+			printf("'%s':\n", debug_line);
+			free(debug_line);
+		}
+#endif
+
 		current_token.type = 0;
 		current_token.literal_type = 0;
 		current_token.value = 0;
@@ -44,7 +71,12 @@ void pass1(FILE *input_file)
 		print_token(&current_token);
 
 		if(current_token.type == TOK_EOL)
+		{
+			printf("\n");
 			line_number++;
+		}
+
+
 
 	} while(current_token.type != TOK_EOF);
 
@@ -62,6 +94,8 @@ void lex_test(FILE *input_file)
 
 int main(int argc, char **argv)
 {
+
+
 	//TODO: Add listing file
 	if(argc != 3)
 		panic("Wrong arguments\nUsage: %s <input-file> <output-file>", argv[0]);
