@@ -13,8 +13,11 @@
 
 * Gen 1 Assembler
 ** Progress:
+   - [ ] Warnings and Errors
    - [-] first pass
      + [X] lexer
-     + [ ] parser
+     + [X] parser
+	 + [ ] Symbol Table (hash map)
+	 + [ ] Strign interning
    - [ ] second pass
      + [ ] code gen

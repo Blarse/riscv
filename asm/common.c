@@ -11,6 +11,13 @@
 #define CLAMP_MAX(x, max) MIN(x, max)
 #define CLAMP_MIN(x, min) MAX(x, min)
 
+//#define ALIGN(x, p) (((x) + (p) - 1) & ~((p) - 1))
+#define ALIGN2(x) (((((x)+3)>>1)<<1)-2)
+//#define ALIGN2(x) ALIGN(x, 1)
+#define ALIGN4(x) (((((x)+7)>>2)<<2)-4)
+#define ALIGN8(x) (((((x)+15)>>3)<<3)-8)
+
+
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;

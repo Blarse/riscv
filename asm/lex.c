@@ -7,7 +7,7 @@ static void read_dec(Token *token, FILE *input_stream);
 static void read_string(Token *token, FILE *input_stream);
 static void read_char(Token *token, FILE *input_stream);
 static void read_comment(FILE *input_stream);
-static void read_multiline_comment(FILE *input_stream);
+static uint32 read_multiline_comment(FILE *input_stream);
 
 int8 char_to_int[256] =
 {
@@ -34,6 +34,10 @@ int8 char_to_int[256] =
 void next_token(Token *token, FILE *input_stream)
 {
 repeat:;
+	token->type = 0;
+	token->literal_type = 0;
+	token->value = 0;
+	token->name = NULL;
 
 	char cursor = fgetc(input_stream);
 
@@ -52,8 +56,18 @@ repeat:;
 			read_comment(input_stream);
 			break;
 		case '*':
-			read_multiline_comment(input_stream);
-			//TODO(idea): count new lines for proper line count
+		{
+			uint32 new_lines = read_multiline_comment(input_stream);
+			if(new_lines)
+			{
+				token->type = TOK_EOL;
+				//NOTE: we need here -1 because every TOK_EOL add 1 line;
+				token->value = new_lines - 1;
+
+				return;
+			}
+		}
+
 			break;
 		default:
 			CASE_ERROR(token, ERR_UNEXPECTED_CHAR, cursor);
@@ -92,7 +106,7 @@ repeat:;
 		cursor = fgetc(input_stream);
 		if(cursor == ':')
 		{
-			token->type = TOK_LABLE;
+			token->type = TOK_LABEL;
 			token->name[buf_len(token->name)-1] = cursor;
 			buf_push(token->name, '\0');
 		}
@@ -135,6 +149,12 @@ repeat:;
 			{
 				buf_push(result, cursor);
 			}
+			else
+			{
+				ungetc(cursor, input_stream);
+				token->name = result;
+				break;
+			}
 		}
 
 		if(cursor == '%')
@@ -143,6 +163,12 @@ repeat:;
 			if(isalpha(cursor = fgetc(input_stream)))
 			{
 				buf_push(result, cursor);
+			}
+			else
+			{
+				ungetc(cursor, input_stream);
+				token->name = result;
+				break;
 			}
 		}
 
@@ -162,7 +188,7 @@ repeat:;
 		{
 			buf_push(result, cursor);
 			cursor = fgetc(input_stream); //NOTE: to make following ungetc work
-			token->type = TOK_LABLE;
+			token->type = TOK_LABEL;
 		}
 
 		ungetc(cursor, input_stream);
@@ -229,19 +255,24 @@ static void read_comment(FILE *input_stream)
 	}
 }
 
-static void read_multiline_comment(FILE *input_stream)
+static uint32 read_multiline_comment(FILE *input_stream)
 {
 	int32 temp;
+	uint32 new_lines = 0;
 	while((temp = fgetc(input_stream)) != EOF)
 	{
+		if(temp == '\n')
+			new_lines++;
+
 		if(temp == '*')
 		{
 			if((temp = fgetc(input_stream)) == '/')
 			{
-				return;
+				return new_lines;
 			}
 		}
 	}
+	return new_lines;
 }
 
 static void read_hex(Token *token, FILE *input_stream)
