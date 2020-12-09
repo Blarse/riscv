@@ -1,0 +1,20 @@
+#+TITLE: The RISC-V Assembler
+#+STARTUP:showall
+
+* How to build
+  #+BEGIN_SRC bash
+    make
+  #+END_SRC
+
+* Usage
+  #+BEGIN_SRC bash
+    ./asm <source_file> <output_file>
+  #+END_SRC
+
+* Gen 1 Assembler
+** Progress:
+   - [-] first pass
+     + [X] lexer
+     + [ ] parser
+   - [ ] second pass
+     + [ ] code gen

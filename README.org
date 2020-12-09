@@ -1,24 +1,16 @@
+#+TITLE: The RISC-V System
+#+STARTUP:showall
 
-* Near future targets:
-  1. [ ] Assembler Gen1
-  2. [ ] Emulator Gen1
-
-
-* Gen 1 Assembler
-** Pseudo Ops:
-   - .align
-   - .section
-   - .text
-   - .data
-   - .rodata
-   - .bss
-   - .string/.asciz
-   - .equ
-   - .option
-   - .byte
-   - .2byte/.half/.short
-   - .4byte/.word/.long
-   - .8byte/.dword/.quad
-   - .zero
-** Pseudo Instructions:
-   [[https://github.com/riscv/riscv-asm-manual/blob/master/riscv-asm.md#a-listing-of-standard-risc-v-pseudoinstructions][link]]
+* System components:
+** [[file:./asm/][Assembler Gen1]]
+   - RV32I Base Instructions Set
+   - Basic pseudo instructions
+   - No elf support, only bin
+   - No macro
+   - No privileged instructions
+   - No CSR instructions
+** [[file:./emu/][Emulator Gen1]]
+   - Execution environment for Gen1 Assembly
+   - Load and execute bin files
+   - Basic debugging
+   - Memory dumps
