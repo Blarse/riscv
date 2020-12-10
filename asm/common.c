@@ -29,15 +29,28 @@ typedef int32_t int32;
 typedef int64_t int64;
 
 
+#if 0
 void panic(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
+	fprintf(stderr, "[PANIC](%s:%d): ", __FILE__, __LINE__);
 	vfprintf(stderr, fmt, args);
 	fputc('\n', stderr);
 	va_end(args);
 	exit(1);
 }
+
+
+#else
+
+#define panic(fmt, ...) do{											\
+		fprintf(stderr, "[PANIC](%s:%d): ", __FILE__, __LINE__);	\
+		fprintf(stderr, (fmt), ##__VA_ARGS__);						\
+		fprintf(stderr, "\n");										\
+		exit(1);													\
+	}while(0)
+#endif
 
 
 void *xcalloc(size_t num_elems, size_t elem_size) {

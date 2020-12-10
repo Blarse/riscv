@@ -6,21 +6,23 @@
 #define PRINT_TOKENS 0
 #define PRINT_INPUT_LINES 0
 
-
 #include "common.c"
 
 #include "tables.h"
-
 #include "lex.h"
-#include "lex.c"
-
-#include "parser.c"
+#include "hashmap.h"
 
 static uint32 line_number = 1;
 static char *input_file_name = NULL;
 static char *output_file_name = NULL;
+static HM_Map *global_symbol_table = NULL;
 
 #include "debug.c"
+
+#include "lex.c"
+#include "hashmap.c"
+#include "parser.c"
+
 
 
 
@@ -48,6 +50,7 @@ void pass1(FILE *input_file)
 			switch(parse_directive(current_token.name))
 			{
 			case DIR_ALIGN:
+				buf_free(current_token.name);
 				next_token(&current_token, input_file);
 				if(current_token.type == TOK_LITERAL)
 				{
@@ -74,6 +77,7 @@ void pass1(FILE *input_file)
 
 
 			case DIR_ORG:
+				buf_free(current_token.name);
 				next_token(&current_token, input_file);
 				if(current_token.type == TOK_LITERAL)
 				{
@@ -83,12 +87,12 @@ void pass1(FILE *input_file)
 				{
 					panic("Wrong .org argument");
 				}
-
 				break;
 
 			case DIR_STRING:
 			case DIR_ASCIZ:
 			case DIR_ASCII://TODO: fix zero term string
+				buf_free(current_token.name);
 				next_token(&current_token, input_file);
 				if(current_token.type == TOK_LITERAL &&
 				   current_token.literal_type == LIT_STR)
@@ -119,13 +123,37 @@ void pass1(FILE *input_file)
 
 			case DIR_ZERO:
 			case DIR_SPACE:
+				buf_free(current_token.name);
 				next_token(&current_token, input_file);
 				if(current_token.type == TOK_LITERAL)
 				{
 					location_counter += current_token.value;
 				}
-
 				break;
+
+			case DIR_EQU:
+			{
+				buf_free(current_token.name);
+				next_token(&current_token, input_file);
+				if(current_token.type != TOK_IDENTIFIER)
+					panic("Parser error: .equ expected identifier");
+				char* key = current_token.name;
+
+				next_token(&current_token, input_file);
+				if(current_token.type != TOK_COMMA)
+					panic("Parser error: .equ expected ','");
+
+				buf_free(current_token.name);
+				next_token(&current_token, input_file);
+				if(current_token.type != TOK_LITERAL)
+					panic("Parser error: .equ expected literal");
+
+				hm_insert(global_symbol_table, key, current_token.value);
+				buf_free(key);
+
+
+
+			} break;
 
 			case DIR_UNDEFINED:
 			default:
@@ -135,9 +163,9 @@ void pass1(FILE *input_file)
 
 			while(current_token.type != TOK_EOL)
 			{
+				buf_free(current_token.name);
 				next_token(&current_token, input_file);
 				print_token(&current_token);
-
 			}
 			line_number++;
 
@@ -156,6 +184,7 @@ void pass1(FILE *input_file)
 
 			while(current_token.type != TOK_EOL)
 			{
+				buf_free(current_token.name);
 				next_token(&current_token, input_file);
 				print_token(&current_token);
 			}
@@ -164,8 +193,12 @@ void pass1(FILE *input_file)
 			break;
 
 		case TOK_LABEL:
-			dprintf("LABLE: %s = %d(%x)\n",
-					current_token.name, location_counter, location_counter);
+			//d_printf("LABLE: %-10s = %d(%#x)\n",
+			//		current_token.name, location_counter, location_counter);
+
+			hm_insert(global_symbol_table, current_token.name, location_counter);
+
+
 			break;
 
 		case TOK_EOL:
@@ -181,13 +214,8 @@ void pass1(FILE *input_file)
 
 }
 
-void lex_test(FILE *input_file)
+void pass2(FILE *input_file, FILE *output_file)
 {
-	printf("Test\n");
-	printf(__func__);
-	Token token = {};
-	read_hex(&token, input_file);
-	printf("a= %d", token.value);
 
 }
 
@@ -229,6 +257,36 @@ void align_test()
 	assert(ALIGN8(0x1234a) == 0x12350);
 }
 
+void hashmap_test()
+{
+	HM_Map *map = hm_create_map(9);
+	hm_insert(map, "Key1", 1);
+	hm_insert(map, "Key2", 2);
+	hm_insert(map, "Key3", 3);
+	hm_insert(map, "Key4", 4);
+	hm_insert(map, "Key5abcdef", 5);
+	hm_insert(map, "Key6", 6);
+	hm_insert(map, "Key7", 7);
+	hm_insert(map, "Key8", 8);
+	hm_insert(map, "Key9", 9);
+	hm_insert(map, "Key10", 10);
+	hm_insert(map, "Key11", 11);
+	assert(hm_search(map, "Key4") == 4);
+	assert(hm_search(map, "Key5abcdef") == 5);
+	assert(hm_delete(map, "Key5abcdef") == 5);
+	assert(hm_search(map, "Key5abcdef") == 0);
+
+	hm_print_map(map);
+}
+
+void run_tests()
+{
+	/* parser_test(); */
+	/* align_test(); */
+	hashmap_test();
+	exit(0);
+}
+
 int main(int argc, char **argv)
 {
 
@@ -249,13 +307,14 @@ int main(int argc, char **argv)
 	if(!output_file)
 		panic("Can't create '%s'", output_file_name);
 
+	//run_tests();
 
-	/* lex_test(input_file); */
-	/* parser_test(); */
-	/* align_test(); */
-	/* exit(0); */
-
+	global_symbol_table = hm_create_map(409);
 	pass1(input_file);
+	hm_print_map(global_symbol_table);
+
+	rewind(input_file);
+	pass2(input_file, output_file);
 
 	return 0;
 }

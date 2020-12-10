@@ -41,6 +41,11 @@
 #if defined(DEBUG)
 
 
+#define d_printf(fmt, ...)								\
+	do{printf("[DEBUG](%s:%d)]: ", __FILE__, __LINE__);	\
+		printf((fmt), ##__VA_ARGS__);}while(0)
+
+
 #if PRINT_TOKENS
 #define print_token(t) print_token_f((t))
 
@@ -104,13 +109,15 @@ void print_input_line_f(uint32 location_counter, FILE *input_file)
 #endif
 
 
-#define dprintf(fmt, ...) printf((fmt), __VA_ARGS__)
+
+
+
 #else
 
 
 #define print_token(t)
 #define print_input_line(lc, i)
-#define dprintf(fmt, ...)
+#define d_printf(fmt, ...)
 
 
 #endif //#if defined(DEBUG)

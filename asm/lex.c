@@ -152,6 +152,7 @@ repeat:;
 			else
 			{
 				ungetc(cursor, input_stream);
+				buf_push(result, '\0');
 				token->name = result;
 				break;
 			}
@@ -167,6 +168,7 @@ repeat:;
 			else
 			{
 				ungetc(cursor, input_stream);
+				buf_push(result, '\0');
 				token->name = result;
 				break;
 			}
@@ -192,6 +194,7 @@ repeat:;
 		}
 
 		ungetc(cursor, input_stream);
+		buf_push(result, '\0');
 		token->name = result;
 
 		break;
