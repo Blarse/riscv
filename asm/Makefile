@@ -6,7 +6,7 @@ CFLAGS=-ggdb -Wall -O0
 
 all: asm
 
-asm: main.c lex.c lex.h tables.h common.c debug.c hashmap.c hashmap.h
+asm: main.c lex.c lex.h tables.h common.c debug.c hashmap.c hashmap.h instructions.h
 	$(CC) -o $@ $< $(CFLAGS)
 
 

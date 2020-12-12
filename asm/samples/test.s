@@ -1,6 +1,5 @@
 	.option nopic
 
-
 	.equ SYS_READ, 63
 	.equ SYS_WRITE, 64
 	.equ SYS_EXIT, 94
@@ -22,7 +21,7 @@
 	msg:			.ascii	"You entered: "
 	l_msg:			.byte	.-msg
 
-
+	huy
 	# ==== VARIABLES AND BUFFERS ====
 
 		.section .bss
@@ -38,7 +37,7 @@
 		.global _start
 
 	_start:
-		# Print prompt
+	# Print prompt
 		li a0, STDOUT			# String goes to stdout (screen)
 		la a1, prompt			# String address
 		lbu a2, l_prompt		# Length of string

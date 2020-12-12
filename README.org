@@ -2,15 +2,23 @@
 #+STARTUP:showall
 
 * System components:
-** [[file:./asm/][Assembler Gen1]]
-   - RV32I Base Instructions Set
-   - Basic pseudo instructions
-   - No elf support, only bin
-   - No macro
-   - No privileged instructions
-   - No CSR instructions
-** [[file:./emu/][Emulator Gen1]]
-   - Execution environment for Gen1 Assembly
-   - Load and execute bin files
-   - Basic debugging
-   - Memory dumps
+** [[file:./asm/][Assembler]]
+*** Gen1
+    - RV32I Base Instructions Set
+    - Basic pseudo instructions
+    - No elf support, only bin
+    - No macro
+    - No privileged instructions
+    - No CSR instructions
+*** Gen2
+    - RV32IMAC Instructions Set
+    - ELF support
+
+** [[file:./emu/][Emulator]]
+*** Gen1
+    - Execution environment for Gen1 Assembly
+    - Load and execute bin files
+    - Basic debugging
+    - Memory dumps
+*** Gen2
+	- Execution environment for Gen2 Assembly

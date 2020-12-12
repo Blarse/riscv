@@ -9,6 +9,7 @@
 #include "common.c"
 
 #include "tables.h"
+#include "instructions.h"
 #include "lex.h"
 #include "hashmap.h"
 
@@ -23,11 +24,17 @@ static HM_Map *global_symbol_table = NULL;
 #include "hashmap.c"
 #include "parser.c"
 
-
+#define EXPECT_COMMA()											\
+	do{buf_free(current_token.name);							\
+		next_token(&current_token, input_file);					\
+		if(current_token.type != TOK_COMMA)						\
+			panic("Parser error: .equ expected ','");			\
+	}while(0)													\
 
 
 void pass1(FILE *input_file)
 {
+	d_printf("Pass 1:\n");
 	uint32 location_counter = 0;
 	Token current_token = { .type = TOK_EOL};
 
@@ -139,9 +146,7 @@ void pass1(FILE *input_file)
 					panic("Parser error: .equ expected identifier");
 				char* key = current_token.name;
 
-				next_token(&current_token, input_file);
-				if(current_token.type != TOK_COMMA)
-					panic("Parser error: .equ expected ','");
+				EXPECT_COMMA();
 
 				buf_free(current_token.name);
 				next_token(&current_token, input_file);
@@ -195,9 +200,8 @@ void pass1(FILE *input_file)
 		case TOK_LABEL:
 			//d_printf("LABLE: %-10s = %d(%#x)\n",
 			//		current_token.name, location_counter, location_counter);
-
+			current_token.name[buf_len(current_token.name)-2] = '\0';
 			hm_insert(global_symbol_table, current_token.name, location_counter);
-
 
 			break;
 
@@ -216,6 +220,80 @@ void pass1(FILE *input_file)
 
 void pass2(FILE *input_file, FILE *output_file)
 {
+	d_printf("Pass 2:\n");
+	uint32 location_counter = 0;
+	Token current_token = { .type = TOK_EOL};
+
+	do
+	{
+
+		if(current_token.type == TOK_EOL)
+		{
+			print_input_line(location_counter, input_file);
+		}
+
+		next_token(&current_token, input_file);
+		print_token(&current_token);
+
+		//TODO(maybe): use string interning for fast comparison
+		switch(current_token.type)
+		{
+		case TOK_DIRECTIVE:
+			while(current_token.type != TOK_EOL)
+			{
+				buf_free(current_token.name);
+				next_token(&current_token, input_file);
+				print_token(&current_token);
+			}
+			break;
+
+		case TOK_IDENTIFIER:
+		{
+			enum Instructions inst = parse_instruction(current_token.name);
+			if(inst == INST_UNDEFINED)
+				panic("Parser error: undefined instruction '%s'", current_token.name);
+
+			uint32 rd;
+			if(i2[inst].format & IN_RD)
+			{
+				buf_free(current_token.name);
+				next_token(&current_token, input_file);
+				rd = parse_register(current_token.name);
+				if(rd == REG_UNDEFINED)
+					panic("Parser error: undefined register '%s'", current_token.name);
+			}
+
+
+
+			while(current_token.type != TOK_EOL)
+			{
+				buf_free(current_token.name);
+				next_token(&current_token, input_file);
+				print_token(&current_token);
+			}
+		} break;
+
+		case TOK_LABEL:
+			while(current_token.type != TOK_EOL)
+			{
+				buf_free(current_token.name);
+				next_token(&current_token, input_file);
+				print_token(&current_token);
+			}
+
+			break;
+
+		case TOK_EOL:
+		case TOK_EOF:
+			break;
+		default:
+			panic("Parser error: unexpected token '%s' <%s>",
+				  current_token.name, tok_to_str[current_token.type]);
+		}
+
+		buf_free(current_token.name);
+	} while(current_token.type != TOK_EOF);
+
 
 }
 
@@ -311,7 +389,7 @@ int main(int argc, char **argv)
 
 	global_symbol_table = hm_create_map(409);
 	pass1(input_file);
-	hm_print_map(global_symbol_table);
+	/* hm_print_map(global_symbol_table); */
 
 	rewind(input_file);
 	pass2(input_file, output_file);
